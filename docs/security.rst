@@ -1,10 +1,27 @@
+..  Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+..    http://www.apache.org/licenses/LICENSE-2.0
+
+..  Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
 Security
 ========
 Security in Superset is handled by Flask AppBuilder (FAB). FAB is a
 "Simple and rapid application development framework, built on top of Flask.".
 FAB provides authentication, user management, permissions and roles.
-Please read its `Security documentation 
-<http://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
+Please read its `Security documentation
+<https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
 Provided Roles
 --------------
@@ -18,7 +35,7 @@ their original values as you run your next ``superset init`` command.
 Since it's not recommended to alter the roles described here, it's right
 to assume that your security strategy should be to compose user access based
 on these base roles and roles that you create. For instance you could
-create a role ``Financial Analyst`` that would be made of set of permissions
+create a role ``Financial Analyst`` that would be made of a set of permissions
 to a set of data sources (tables) and/or databases. Users would then be
 granted ``Gamma``, ``Financial Analyst``, and perhaps ``sql_lab``.
 
@@ -29,13 +46,13 @@ other users and altering other people's slices and dashboards.
 
 Alpha
 """""
-Alpha have access to all data sources, but they cannot grant or revoke access
+Alpha users have access to all data sources, but they cannot grant or revoke access
 from other users. They are also limited to altering the objects that they
 own. Alpha users can add and alter data sources.
 
 Gamma
 """""
-Gamma have limited access. They can only consume data coming from data sources
+Gamma users have limited access. They can only consume data coming from data sources
 they have been given access to through another complementary role.
 They only have access to view the slices and
 dashboards made from data sources that they have access to. Currently Gamma
@@ -75,7 +92,7 @@ click the ``+`` sign.
 
 This new window allows you to give this new role a name, attribute it to users
 and select the tables in the ``Permissions`` dropdown. To select the data
-sources you want to associate with this role, simply click in the dropdown
+sources you want to associate with this role, simply click on the dropdown
 and use the typeahead to search for your table names.
 
 You can then confirm with your Gamma users that they see the objects
@@ -87,12 +104,12 @@ Customizing
 
 The permissions exposed by FAB are very granular and allow for a great level
 of customization. FAB creates many permissions automagically for each model
-that is create (can_add, can_delete, can_show, can_edit, ...) as well as for
+that is created (can_add, can_delete, can_show, can_edit, ...) as well as for
 each view. On top of that, Superset can expose more granular permissions like
 ``all_datasource_access``.
 
 We do not recommend altering the 3 base roles as there
-are a set of assumptions that Superset build upon. It is possible though for
+are a set of assumptions that Superset is built upon. It is possible though for
 you to create your own roles, and union them to existing ones.
 
 Permissions
@@ -107,8 +124,7 @@ of permissions. Here are the different categories of permissions:
   so on. By adding ``can_delete on Dashboard`` to a role, and granting that
   role to a user, this user will be able to delete dashboards.
 - **Views**: views are individual web pages, like the ``explore`` view or the
-  ``SQL Lab`` view. When granted to a user, he/she will see that view in
-  the its menu items, and be able to load that page.
+  ``SQL Lab`` view. When granted to a user, he/she will see that view in its menu items, and be able to load that page.
 - **Data source**: For each data source, a permission is created. If the user
   does not have the ``all_datasource_access`` permission granted, the user
   will only be able to see Slices or explore the data sources that are granted
@@ -137,26 +153,3 @@ a set of data sources that power dashboards only made available to executives.
 When looking at its dashboard list, this user will only see the
 list of dashboards it has access to, based on the roles and
 permissions that were attributed.
-
-
-Restricting the access to some metrics
-""""""""""""""""""""""""""""""""""""""
-
-Sometimes some metrics are relatively sensitive (e.g. revenue).
-We may want to restrict those metrics to only a few roles.
-For example, assumed there is a metric ``[cluster1].[datasource1].[revenue]``
-and only Admin users are allowed to see it. Here’s how to restrict the access.
-
-1. Edit the datasource (``Menu -> Source -> Druid datasources -> edit the
-   record "datasource1"``) and go to the tab ``List Druid Metric``. Check
-   the checkbox ``Is Restricted`` in the row of the metric ``revenue``.
-
-2. Edit the role (``Menu -> Security -> List Roles -> edit the record
-   “Admin”``), in the permissions field, type-and-search the permission
-   ``metric access on [cluster1].[datasource1].[revenue] (id: 1)``, then
-   click the Save button on the bottom of the page.
-
-Any users without the permission will see the error message
-*Access to the metrics denied: revenue (Status: 500)* in the slices.
-It also happens when the user wants to access a post-aggregation metric that
-is dependent on revenue.

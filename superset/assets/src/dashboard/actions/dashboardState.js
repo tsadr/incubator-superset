@@ -1,41 +1,51 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 /* eslint camelcase: 0 */
-import $ from 'jquery';
 import { ActionCreators as UndoActionCreators } from 'redux-undo';
+import { t } from '@superset-ui/translation';
+import { SupersetClient } from '@superset-ui/connection';
 
 import { addChart, removeChart, refreshChart } from '../../chart/chartAction';
 import { chart as initChart } from '../../chart/chartReducer';
 import { fetchDatasourceMetadata } from '../../dashboard/actions/datasources';
-import { applyDefaultFormData } from '../../explore/store';
-import { getAjaxErrorMsg } from '../../modules/utils';
 import {
-  Logger,
-  LOG_ACTIONS_CHANGE_DASHBOARD_FILTER,
-  LOG_ACTIONS_REFRESH_DASHBOARD,
-} from '../../logger';
+  addFilter,
+  removeFilter,
+  updateDirectPathToFilter,
+} from '../../dashboard/actions/dashboardFilters';
+import { applyDefaultFormData } from '../../explore/store';
+import getClientErrorObject from '../../utils/getClientErrorObject';
 import { SAVE_TYPE_OVERWRITE } from '../util/constants';
-import { t } from '../../locales';
-
 import {
   addSuccessToast,
   addWarningToast,
   addDangerToast,
 } from '../../messageToasts/actions';
+import { UPDATE_COMPONENTS_PARENTS_LIST } from '../actions/dashboardLayout';
+import serializeActiveFilterValues from '../util/serializeActiveFilterValues';
+import serializeFilterScopes from '../util/serializeFilterScopes';
+import { getActiveFilters } from '../util/activeDashboardFilters';
+import { safeStringify } from '../../utils/safeStringify';
 
 export const SET_UNSAVED_CHANGES = 'SET_UNSAVED_CHANGES';
 export function setUnsavedChanges(hasUnsavedChanges) {
   return { type: SET_UNSAVED_CHANGES, payload: { hasUnsavedChanges } };
-}
-
-export const CHANGE_FILTER = 'CHANGE_FILTER';
-export function changeFilter(chart, col, vals, merge = true, refresh = true) {
-  Logger.append(LOG_ACTIONS_CHANGE_DASHBOARD_FILTER, {
-    id: chart.id,
-    column: col,
-    value_count: Array.isArray(vals) ? vals.length : (vals && 1) || 0,
-    merge,
-    refresh,
-  });
-  return { type: CHANGE_FILTER, chart, col, vals, merge, refresh };
 }
 
 export const ADD_SLICE = 'ADD_SLICE';
@@ -57,12 +67,21 @@ export function toggleFaveStar(isStarred) {
 export const FETCH_FAVE_STAR = 'FETCH_FAVE_STAR';
 export function fetchFaveStar(id) {
   return function fetchFaveStarThunk(dispatch) {
-    const url = `${FAVESTAR_BASE_URL}/${id}/count`;
-    return $.get(url).done(data => {
-      if (data.count > 0) {
-        dispatch(toggleFaveStar(true));
-      }
-    });
+    return SupersetClient.get({
+      endpoint: `${FAVESTAR_BASE_URL}/${id}/count/`,
+    })
+      .then(({ json }) => {
+        if (json.count > 0) dispatch(toggleFaveStar(true));
+      })
+      .catch(() =>
+        dispatch(
+          addDangerToast(
+            t(
+              'There was an issue fetching the favorite status of this dashboard.',
+            ),
+          ),
+        ),
+      );
   };
 }
 
@@ -70,9 +89,46 @@ export const SAVE_FAVE_STAR = 'SAVE_FAVE_STAR';
 export function saveFaveStar(id, isStarred) {
   return function saveFaveStarThunk(dispatch) {
     const urlSuffix = isStarred ? 'unselect' : 'select';
-    const url = `${FAVESTAR_BASE_URL}/${id}/${urlSuffix}/`;
-    $.get(url);
-    dispatch(toggleFaveStar(!isStarred));
+    return SupersetClient.get({
+      endpoint: `${FAVESTAR_BASE_URL}/${id}/${urlSuffix}/`,
+    })
+      .then(() => {
+        dispatch(toggleFaveStar(!isStarred));
+      })
+      .catch(() =>
+        dispatch(
+          addDangerToast(t('There was an issue favoriting this dashboard.')),
+        ),
+      );
+  };
+}
+
+export const TOGGLE_PUBLISHED = 'TOGGLE_PUBLISHED';
+export function togglePublished(isPublished) {
+  return { type: TOGGLE_PUBLISHED, isPublished };
+}
+
+export function savePublished(id, isPublished) {
+  return function savePublishedThunk(dispatch) {
+    return SupersetClient.put({
+      endpoint: `/api/v1/dashboard/${id}`,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        published: isPublished,
+      }),
+    })
+      .then(() => {
+        const nowPublished = isPublished ? 'published' : 'hidden';
+        dispatch(addSuccessToast(t(`This dashboard is now ${nowPublished}`)));
+        dispatch(togglePublished(isPublished));
+      })
+      .catch(() => {
+        dispatch(
+          addDangerToast(
+            t('You do not have permissions to edit this dashboard.'),
+          ),
+        );
+      });
   };
 }
 
@@ -101,6 +157,11 @@ export function onSave() {
   return { type: ON_SAVE };
 }
 
+export const SET_REFRESH_FREQUENCY = 'SET_REFRESH_FREQUENCY';
+export function setRefreshFrequency(refreshFrequency, isPersistent = false) {
+  return { type: SET_REFRESH_FREQUENCY, refreshFrequency, isPersistent };
+}
+
 export function saveDashboardRequestSuccess() {
   return dispatch => {
     dispatch(onSave());
@@ -111,41 +172,56 @@ export function saveDashboardRequestSuccess() {
 
 export function saveDashboardRequest(data, id, saveType) {
   const path = saveType === SAVE_TYPE_OVERWRITE ? 'save_dash' : 'copy_dash';
-  const url = `/superset/${path}/${id}/`;
-  return dispatch =>
-    $.ajax({
-      type: 'POST',
-      url,
-      data: {
-        data: JSON.stringify(data),
+
+  return (dispatch, getState) => {
+    dispatch({ type: UPDATE_COMPONENTS_PARENTS_LIST });
+
+    const { dashboardFilters, dashboardLayout } = getState();
+    const layout = dashboardLayout.present;
+    Object.values(dashboardFilters).forEach(filter => {
+      const { chartId } = filter;
+      const componentId = filter.directPathToFilter.slice().pop();
+      const directPathToFilter = (layout[componentId].parents || []).slice();
+      directPathToFilter.push(componentId);
+      dispatch(updateDirectPathToFilter(chartId, directPathToFilter));
+    });
+    // serialize selected values for each filter field, grouped by filter id
+    const serializedFilters = serializeActiveFilterValues(getActiveFilters());
+    // serialize filter scope for each filter field, grouped by filter id
+    const serializedFilterScopes = serializeFilterScopes(dashboardFilters);
+    return SupersetClient.post({
+      endpoint: `/superset/${path}/${id}/`,
+      postPayload: {
+        data: {
+          ...data,
+          default_filters: safeStringify(serializedFilters),
+          filter_scopes: safeStringify(serializedFilterScopes),
+        },
       },
-      success: () => {
+    })
+      .then(response => {
         dispatch(saveDashboardRequestSuccess());
         dispatch(addSuccessToast(t('This dashboard was saved successfully.')));
-      },
-      error: error => {
-        const errorMsg = getAjaxErrorMsg(error);
-        dispatch(
-          addDangerToast(
-            `${t('Sorry, there was an error saving this dashboard: ')}
-          ${errorMsg}`,
+        return response;
+      })
+      .catch(response =>
+        getClientErrorObject(response).then(({ error }) =>
+          dispatch(
+            addDangerToast(
+              `${t(
+                'Sorry, there was an error saving this dashboard: ',
+              )} ${error}`,
+            ),
           ),
-        );
-      },
-    });
+        ),
+      );
+  };
 }
 
 export function fetchCharts(chartList = [], force = false, interval = 0) {
   return (dispatch, getState) => {
-    Logger.append(LOG_ACTIONS_REFRESH_DASHBOARD, {
-      force,
-      interval,
-      chartCount: chartList.length,
-    });
-    const timeout = getState().dashboardInfo.common.conf
-      .SUPERSET_WEBSERVER_TIMEOUT;
     if (!interval) {
-      chartList.forEach(chart => dispatch(refreshChart(chart, force, timeout)));
+      chartList.forEach(chartKey => dispatch(refreshChart(chartKey, force)));
       return;
     }
 
@@ -160,52 +236,18 @@ export function fetchCharts(chartList = [], force = false, interval = 0) {
     const delay = meta.stagger_refresh
       ? refreshTime / (chartList.length - 1)
       : 0;
-    chartList.forEach((chart, i) => {
-      setTimeout(
-        () => dispatch(refreshChart(chart, force, timeout)),
-        delay * i,
-      );
+    chartList.forEach((chartKey, i) => {
+      setTimeout(() => dispatch(refreshChart(chartKey, force)), delay * i);
     });
   };
 }
 
-let refreshTimer = null;
-export function startPeriodicRender(interval) {
-  const stopPeriodicRender = () => {
-    if (refreshTimer) {
-      clearTimeout(refreshTimer);
-      refreshTimer = null;
-    }
-  };
-
-  return (dispatch, getState) => {
-    stopPeriodicRender();
-
-    const { metadata } = getState().dashboardInfo;
-    const immune = metadata.timed_refresh_immune_slices || [];
-    const refreshAll = () => {
-      const affected = Object.values(getState().charts).filter(
-        chart => immune.indexOf(chart.id) === -1,
-      );
-      return dispatch(fetchCharts(affected, true, interval * 0.2));
-    };
-    const fetchAndRender = () => {
-      refreshAll();
-      if (interval > 0) {
-        refreshTimer = setTimeout(fetchAndRender, interval);
-      }
-    };
-
-    fetchAndRender();
-  };
+export const SHOW_BUILDER_PANE = 'SHOW_BUILDER_PANE';
+export function showBuilderPane(builderPaneType) {
+  return { type: SHOW_BUILDER_PANE, builderPaneType };
 }
 
-export const TOGGLE_BUILDER_PANE = 'TOGGLE_BUILDER_PANE';
-export function toggleBuilderPane() {
-  return { type: TOGGLE_BUILDER_PANE };
-}
-
-export function addSliceToDashboard(id) {
+export function addSliceToDashboard(id, component) {
   return (dispatch, getState) => {
     const { sliceEntities } = getState();
     const selectedSlice = sliceEntities.slices[id];
@@ -216,7 +258,10 @@ export function addSliceToDashboard(id) {
         ),
       );
     }
-    const form_data = selectedSlice.form_data;
+    const form_data = {
+      ...selectedSlice.form_data,
+      slice_id: selectedSlice.slice_id,
+    };
     const newChart = {
       ...initChart,
       id,
@@ -227,15 +272,53 @@ export function addSliceToDashboard(id) {
     return Promise.all([
       dispatch(addChart(newChart, id)),
       dispatch(fetchDatasourceMetadata(form_data.datasource)),
-    ]).then(() => dispatch(addSlice(selectedSlice)));
+    ]).then(() => {
+      dispatch(addSlice(selectedSlice));
+
+      if (selectedSlice && selectedSlice.viz_type === 'filter_box') {
+        dispatch(addFilter(id, component, selectedSlice.form_data));
+      }
+    });
   };
 }
 
 export function removeSliceFromDashboard(id) {
-  return dispatch => {
+  return (dispatch, getState) => {
+    const sliceEntity = getState().sliceEntities.slices[id];
+    if (sliceEntity && sliceEntity.viz_type === 'filter_box') {
+      dispatch(removeFilter(id));
+    }
+
     dispatch(removeSlice(id));
     dispatch(removeChart(id));
   };
+}
+
+export const SET_COLOR_SCHEME = 'SET_COLOR_SCHEME';
+export function setColorScheme(colorScheme) {
+  return { type: SET_COLOR_SCHEME, colorScheme };
+}
+
+export function setColorSchemeAndUnsavedChanges(colorScheme) {
+  return dispatch => {
+    dispatch(setColorScheme(colorScheme));
+    dispatch(setUnsavedChanges(true));
+  };
+}
+
+export const SET_DIRECT_PATH = 'SET_DIRECT_PATH';
+export function setDirectPathToChild(path) {
+  return { type: SET_DIRECT_PATH, path };
+}
+
+export const SET_FOCUSED_FILTER_FIELD = 'SET_FOCUSED_FILTER_FIELD';
+export function setFocusedFilterField(chartId, column) {
+  return { type: SET_FOCUSED_FILTER_FIELD, chartId, column };
+}
+
+export function unsetFocusedFilterField() {
+  // same ACTION as setFocusedFilterField, without arguments
+  return { type: SET_FOCUSED_FILTER_FIELD };
 }
 
 // Undo history ---------------------------------------------------------------

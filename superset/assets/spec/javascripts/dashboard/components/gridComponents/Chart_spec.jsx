@@ -1,6 +1,23 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import React from 'react';
 import { shallow } from 'enzyme';
-import { expect } from 'chai';
 import sinon from 'sinon';
 
 import Chart from '../../../../../src/dashboard/components/gridComponents/Chart';
@@ -8,17 +25,14 @@ import SliceHeader from '../../../../../src/dashboard/components/SliceHeader';
 import ChartContainer from '../../../../../src/chart/ChartContainer';
 
 import mockDatasource from '../../../../fixtures/mockDatasource';
-import {
-  sliceEntitiesForChart as sliceEntities,
-  sliceId,
-} from '../../fixtures/mockSliceEntities';
+import { sliceEntitiesForChart as sliceEntities } from '../../fixtures/mockSliceEntities';
 import chartQueries, {
   sliceId as queryId,
 } from '../../fixtures/mockChartQueries';
 
 describe('Chart', () => {
   const props = {
-    id: sliceId,
+    id: queryId,
     width: 100,
     height: 100,
     updateSliceName() {},
@@ -26,20 +40,22 @@ describe('Chart', () => {
     // from redux
     chart: chartQueries[queryId],
     formData: chartQueries[queryId].formData,
-    datasource: mockDatasource[sliceEntities.slices[sliceId].datasource],
+    datasource: mockDatasource[sliceEntities.slices[queryId].datasource],
     slice: {
-      ...sliceEntities.slices[sliceId],
+      ...sliceEntities.slices[queryId],
       description_markeddown: 'markdown',
     },
-    sliceName: sliceEntities.slices[sliceId].slice_name,
+    sliceName: sliceEntities.slices[queryId].slice_name,
     timeout: 60,
     filters: {},
     refreshChart() {},
     toggleExpandSlice() {},
     addFilter() {},
+    logEvent() {},
     editMode: false,
     isExpanded: false,
     supersetCanExplore: false,
+    supersetCanCSV: false,
     sliceCanEdit: false,
   };
 
@@ -50,39 +66,33 @@ describe('Chart', () => {
 
   it('should render a SliceHeader', () => {
     const wrapper = setup();
-    expect(wrapper.find(SliceHeader)).to.have.length(1);
+    expect(wrapper.find(SliceHeader)).toHaveLength(1);
   });
 
   it('should render a ChartContainer', () => {
     const wrapper = setup();
-    expect(wrapper.find(ChartContainer)).to.have.length(1);
+    expect(wrapper.find(ChartContainer)).toHaveLength(1);
   });
 
   it('should render a description if it has one and isExpanded=true', () => {
     const wrapper = setup();
-    expect(wrapper.find('.slice_description')).to.have.length(0);
+    expect(wrapper.find('.slice_description')).toHaveLength(0);
 
     wrapper.setProps({ ...props, isExpanded: true });
-    expect(wrapper.find('.slice_description')).to.have.length(1);
+    expect(wrapper.find('.slice_description')).toHaveLength(1);
   });
 
   it('should call refreshChart when SliceHeader calls forceRefresh', () => {
     const refreshChart = sinon.spy();
     const wrapper = setup({ refreshChart });
     wrapper.instance().forceRefresh();
-    expect(refreshChart.callCount).to.equal(1);
+    expect(refreshChart.callCount).toBe(1);
   });
 
-  it('should call addFilter when ChartContainer calls addFilter', () => {
-    const addFilter = sinon.spy();
-    const wrapper = setup({ addFilter });
-    wrapper.instance().addFilter();
-    expect(addFilter.callCount).to.equal(1);
-  });
-
-  it('should return props.filters when its getFilters method is called', () => {
-    const filters = { column: ['value'] };
-    const wrapper = setup({ filters });
-    expect(wrapper.instance().getFilters()).to.equal(filters);
+  it('should call changeFilter when ChartContainer calls changeFilter', () => {
+    const changeFilter = sinon.spy();
+    const wrapper = setup({ changeFilter });
+    wrapper.instance().changeFilter();
+    expect(changeFilter.callCount).toBe(1);
   });
 });

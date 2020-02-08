@@ -1,6 +1,24 @@
-import { expect } from 'chai';
-
-import AdhocMetric, { EXPRESSION_TYPES } from '../../../src/explore/AdhocMetric';
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+import AdhocMetric, {
+  EXPRESSION_TYPES,
+} from '../../../src/explore/AdhocMetric';
 import { AGGREGATES } from '../../../src/explore/constants';
 
 const valueColumn = { type: 'DOUBLE', column_name: 'value' };
@@ -11,8 +29,8 @@ describe('AdhocMetric', () => {
       column: valueColumn,
       aggregate: AGGREGATES.SUM,
     });
-    expect(adhocMetric.optionName.length).to.be.above(10);
-    expect(adhocMetric).to.deep.equal({
+    expect(adhocMetric.optionName.length).toBeGreaterThan(10);
+    expect(adhocMetric).toEqual({
       expressionType: EXPRESSION_TYPES.SIMPLE,
       column: valueColumn,
       aggregate: AGGREGATES.SUM,
@@ -29,13 +47,15 @@ describe('AdhocMetric', () => {
       column: valueColumn,
       aggregate: AGGREGATES.SUM,
     });
-    const adhocMetric2 = adhocMetric1.duplicateWith({ aggregate: AGGREGATES.AVG });
+    const adhocMetric2 = adhocMetric1.duplicateWith({
+      aggregate: AGGREGATES.AVG,
+    });
 
-    expect(adhocMetric1.column).to.equal(adhocMetric2.column);
-    expect(adhocMetric1.column).to.equal(valueColumn);
+    expect(adhocMetric1.column).toBe(adhocMetric2.column);
+    expect(adhocMetric1.column).toBe(valueColumn);
 
-    expect(adhocMetric1.aggregate).to.equal(AGGREGATES.SUM);
-    expect(adhocMetric2.aggregate).to.equal(AGGREGATES.AVG);
+    expect(adhocMetric1.aggregate).toBe(AGGREGATES.SUM);
+    expect(adhocMetric2.aggregate).toBe(AGGREGATES.AVG);
   });
 
   it('can verify equality', () => {
@@ -46,7 +66,7 @@ describe('AdhocMetric', () => {
     const adhocMetric2 = adhocMetric1.duplicateWith({});
 
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric1.equals(adhocMetric2)).to.be.true;
+    expect(adhocMetric1.equals(adhocMetric2)).toBe(true);
   });
 
   it('can verify inequality', () => {
@@ -59,7 +79,7 @@ describe('AdhocMetric', () => {
     const adhocMetric2 = adhocMetric1.duplicateWith({ label: 'new label' });
 
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric1.equals(adhocMetric2)).to.be.false;
+    expect(adhocMetric1.equals(adhocMetric2)).toBe(false);
 
     const adhocMetric3 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SQL,
@@ -67,10 +87,12 @@ describe('AdhocMetric', () => {
       label: 'old label',
       hasCustomLabel: true,
     });
-    const adhocMetric4 = adhocMetric3.duplicateWith({ sqlExpression: 'COUNT(1)' });
+    const adhocMetric4 = adhocMetric3.duplicateWith({
+      sqlExpression: 'COUNT(1)',
+    });
 
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric3.equals(adhocMetric4)).to.be.false;
+    expect(adhocMetric3.equals(adhocMetric4)).toBe(false);
   });
 
   it('updates label if hasCustomLabel is false', () => {
@@ -78,9 +100,11 @@ describe('AdhocMetric', () => {
       column: valueColumn,
       aggregate: AGGREGATES.SUM,
     });
-    const adhocMetric2 = adhocMetric1.duplicateWith({ aggregate: AGGREGATES.AVG });
+    const adhocMetric2 = adhocMetric1.duplicateWith({
+      aggregate: AGGREGATES.AVG,
+    });
 
-    expect(adhocMetric2.label).to.equal('AVG(value)');
+    expect(adhocMetric2.label).toBe('AVG(value)');
   });
 
   it('keeps label if hasCustomLabel is true', () => {
@@ -90,9 +114,11 @@ describe('AdhocMetric', () => {
       hasCustomLabel: true,
       label: 'label1',
     });
-    const adhocMetric2 = adhocMetric1.duplicateWith({ aggregate: AGGREGATES.AVG });
+    const adhocMetric2 = adhocMetric1.duplicateWith({
+      aggregate: AGGREGATES.AVG,
+    });
 
-    expect(adhocMetric2.label).to.equal('label1');
+    expect(adhocMetric2.label).toBe('label1');
   });
 
   it('can determine if it is valid', () => {
@@ -104,7 +130,7 @@ describe('AdhocMetric', () => {
       label: 'label1',
     });
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric1.isValid()).to.be.true;
+    expect(adhocMetric1.isValid()).toBe(true);
 
     const adhocMetric2 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SIMPLE,
@@ -114,7 +140,7 @@ describe('AdhocMetric', () => {
       label: 'label1',
     });
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric2.isValid()).to.be.false;
+    expect(adhocMetric2.isValid()).toBe(false);
 
     const adhocMetric3 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SQL,
@@ -123,7 +149,7 @@ describe('AdhocMetric', () => {
       label: 'label1',
     });
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric3.isValid()).to.be.true;
+    expect(adhocMetric3.isValid()).toBe(true);
 
     const adhocMetric4 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SQL,
@@ -133,7 +159,7 @@ describe('AdhocMetric', () => {
       label: 'label1',
     });
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric4.isValid()).to.be.false;
+    expect(adhocMetric4.isValid()).toBe(false);
 
     const adhocMetric5 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SQL,
@@ -141,7 +167,7 @@ describe('AdhocMetric', () => {
       label: 'label1',
     });
     // eslint-disable-next-line no-unused-expressions
-    expect(adhocMetric5.isValid()).to.be.false;
+    expect(adhocMetric5.isValid()).toBe(false);
   });
 
   it('can translate back from sql expressions to simple expressions when possible', () => {
@@ -151,8 +177,8 @@ describe('AdhocMetric', () => {
       hasCustomLabel: true,
       label: 'label1',
     });
-    expect(adhocMetric.inferSqlExpressionColumn()).to.equal('my_column');
-    expect(adhocMetric.inferSqlExpressionAggregate()).to.equal('AVG');
+    expect(adhocMetric.inferSqlExpressionColumn()).toBe('my_column');
+    expect(adhocMetric.inferSqlExpressionAggregate()).toBe('AVG');
 
     const adhocMetric2 = new AdhocMetric({
       expressionType: EXPRESSION_TYPES.SQL,
@@ -160,8 +186,8 @@ describe('AdhocMetric', () => {
       hasCustomLabel: true,
       label: 'label1',
     });
-    expect(adhocMetric2.inferSqlExpressionColumn()).to.equal(null);
-    expect(adhocMetric2.inferSqlExpressionAggregate()).to.equal(null);
+    expect(adhocMetric2.inferSqlExpressionColumn()).toBeNull();
+    expect(adhocMetric2.inferSqlExpressionAggregate()).toBeNull();
   });
 
   it('will infer columns and aggregates when converting to a simple expression', () => {
@@ -175,14 +201,14 @@ describe('AdhocMetric', () => {
       expressionType: EXPRESSION_TYPES.SIMPLE,
       aggregate: AGGREGATES.SUM,
     });
-    expect(adhocMetric2.aggregate).to.equal(AGGREGATES.SUM);
-    expect(adhocMetric2.column.column_name).to.equal('my_column');
+    expect(adhocMetric2.aggregate).toBe(AGGREGATES.SUM);
+    expect(adhocMetric2.column.column_name).toBe('my_column');
 
     const adhocMetric3 = adhocMetric.duplicateWith({
       expressionType: EXPRESSION_TYPES.SIMPLE,
       column: valueColumn,
     });
-    expect(adhocMetric3.aggregate).to.equal(AGGREGATES.AVG);
-    expect(adhocMetric3.column.column_name).to.equal('value');
+    expect(adhocMetric3.aggregate).toBe(AGGREGATES.AVG);
+    expect(adhocMetric3.column.column_name).toBe('value');
   });
 });

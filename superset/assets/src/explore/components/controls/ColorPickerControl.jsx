@@ -1,10 +1,27 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 import React from 'react';
 import PropTypes from 'prop-types';
 import { OverlayTrigger, Popover } from 'react-bootstrap';
 import { SketchPicker } from 'react-color';
-
+import { getCategoricalSchemeRegistry } from '@superset-ui/color';
 import ControlHeader from '../ControlHeader';
-import { bnbColors } from '../../../modules/colors';
 
 const propTypes = {
   onChange: PropTypes.func,
@@ -34,7 +51,8 @@ const styles = {
     borderRadius: '1px',
     display: 'inline-block',
     cursor: 'pointer',
-    boxShadow: 'rgba(0, 0, 0, 0.15) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.25) 0px 0px 4px inset',
+    boxShadow:
+      'rgba(0, 0, 0, 0.15) 0px 0px 0px 1px inset, rgba(0, 0, 0, 0.25) 0px 0px 4px inset',
   },
   color: {
     ...swatchCommon,
@@ -42,7 +60,8 @@ const styles = {
   },
   checkboard: {
     ...swatchCommon,
-    background: 'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==") left center',
+    background:
+      'url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMUlEQVQ4T2NkYGAQYcAP3uCTZhw1gGGYhAGBZIA/nYDCgBDAm9BGDWAAJyRCgLaBCAAgXwixzAS0pgAAAABJRU5ErkJggg==") left center',
   },
 };
 export default class ColorPickerControl extends React.Component {
@@ -54,19 +73,24 @@ export default class ColorPickerControl extends React.Component {
     this.props.onChange(col.rgb);
   }
   renderPopover() {
+    const presetColors = getCategoricalSchemeRegistry()
+      .get()
+      .colors.filter((s, i) => i < 7);
     return (
       <Popover id="filter-popover" className="color-popover">
         <SketchPicker
           color={this.props.value}
           onChange={this.onChange}
-          presetColors={bnbColors.filter((s, i) => i < 7)}
+          presetColors={presetColors}
         />
-      </Popover>);
+      </Popover>
+    );
   }
   render() {
     const c = this.props.value || { r: 0, g: 0, b: 0, a: 0 };
-    const colStyle = Object.assign(
-      {}, styles.color, { background: `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a})` });
+    const colStyle = Object.assign({}, styles.color, {
+      background: `rgba(${c.r}, ${c.g}, ${c.b}, ${c.a})`,
+    });
     return (
       <div>
         <ControlHeader {...this.props} />
